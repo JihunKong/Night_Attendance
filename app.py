@@ -126,7 +126,7 @@ def main():
                 st.session_state.first_login = user['first_login']
                 st.session_state.is_admin = user['is_admin']
                 st.success('로그인 성공!')
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.error('로그인 실패. 아이디와 비밀번호를 확인해주세요.')
         
@@ -146,7 +146,7 @@ def main():
                 st.session_state.first_login = False
                 st.success('비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해주세요.')
                 st.session_state.logged_in = False
-                st.experimental_rerun()
+                st.rerun()
         else:
             if st.session_state.is_admin:
                 admin_view()
@@ -156,7 +156,7 @@ def main():
         if st.button('로그아웃'):
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
-            st.experimental_rerun()
+            st.rerun()
 
 def student_view():
     st.write(f'안녕하세요, {st.session_state.username}님!')
@@ -174,7 +174,7 @@ def student_view():
             st.success('비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해주세요.')
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
-            st.experimental_rerun()
+            st.rerun()
 
 def admin_view():
     st.write('관리자 페이지')
