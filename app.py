@@ -32,7 +32,7 @@ def init_db():
         for class_num in range(1, 8):
             for student_num in range(1, 26):
                 user_id = f'1{class_num:02d}{student_num:02d}'  # 예: 1학년 1반 1번 -> '10101'
-                initial_password = f'init{user_id}'  # 초기 비밀번호를 'init' + 사용자 ID로 설정
+                initial_password = f'{user_id}'  # 초기 비밀번호를 사용자 ID와 동일하게 설정
                 password = bcrypt.hashpw(initial_password.encode(), bcrypt.gensalt())
                 conn.execute('INSERT INTO users (username, password, is_admin, first_login) VALUES (?, ?, ?, ?)',
                              (user_id, password, 0, 1))
@@ -92,6 +92,16 @@ def check_user_info(username):
         st.write(f"사용자 정보: {dict(user)}")
     else:
         st.write(f"사용자 '{username}'을(를) 찾을 수 없습니다.")
+
+# 비밀번호 초기화 함수
+def reset_password(username):
+    conn = get_db_connection()
+    initial_password = f'{username}'  # 초기 비밀번호를 사용자 ID와 동일하게 설정
+    new_password_hash = bcrypt.hashpw(initial_password.encode(), bcrypt.gensalt())
+    conn.execute('UPDATE users SET password = ?, first_login = 1 WHERE username = ?', (new_password_hash, username))
+    conn.commit()
+    conn.close()
+    return initial_password
 
 # 메인 앱
 def main():
@@ -179,6 +189,19 @@ def student_view():
 def admin_view():
     st.write('관리자 페이지')
     
+    # 비밀번호 초기화 섹션
+    st.subheader('비밀번호 초기화')
+    reset_username = st.text_input('초기화할 사용자의 아이디')
+    if st.button('비밀번호 초기화'):
+        if reset_username:
+            initial_password = reset_password(reset_username)
+            st.success(f"사용자 {reset_username}의 비밀번호가 초기화되었습니다.")
+            st.info(f"초기 비밀번호: {initial_password}")
+        else:
+            st.error('사용자 아이디를 입력해주세요.')
+    
+    # 출석 데이터 표시 섹션
+    st.subheader('출석 데이터')
     conn = get_db_connection()
     attendance_data = conn.execute('SELECT * FROM attendance ORDER BY timestamp DESC').fetchall()
     conn.close()
