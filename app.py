@@ -28,7 +28,7 @@ def init_db():
     for class_num in range(1, 8):
         for student_num in range(1, 26):
             user_id = f'1{class_num:02d}{student_num:02d}'
-            initial_password = f'mh{user_id}'  # 초기 비밀번호를 'mh' + 사용자 ID로 설정
+            initial_password = f'init{user_id}'  # 초기 비밀번호를 'init' + 사용자 ID로 설정
             password = bcrypt.hashpw(initial_password.encode(), bcrypt.gensalt())
             conn.execute('INSERT OR IGNORE INTO users (username, password, is_admin, first_login) VALUES (?, ?, ?, ?)',
                          (user_id, password, 0, 1))
