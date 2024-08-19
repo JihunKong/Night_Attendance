@@ -15,22 +15,23 @@ def get_db_connection():
 def init_db():
     conn = get_db_connection()
     conn.execute('''CREATE TABLE IF NOT EXISTS users
-                    (username TEXT PRIMARY KEY, password TEXT, is_admin INTEGER)''')
+                    (username TEXT PRIMARY KEY, password TEXT, is_admin INTEGER, first_login INTEGER)''')
     conn.execute('''CREATE TABLE IF NOT EXISTS attendance
                     (username TEXT, timestamp TEXT)''')
     
     # 관리자 계정 생성
     admin_password = bcrypt.hashpw('admin123'.encode(), bcrypt.gensalt())
-    conn.execute('INSERT OR IGNORE INTO users (username, password, is_admin) VALUES (?, ?, ?)',
-                 ('admin1', admin_password, 1))
+    conn.execute('INSERT OR IGNORE INTO users (username, password, is_admin, first_login) VALUES (?, ?, ?, ?)',
+                 ('admin1', admin_password, 1, 0))
     
     # 학생 계정 생성
     for class_num in range(1, 8):
         for student_num in range(1, 26):
             user_id = f'1{class_num:02d}{student_num:02d}'
-            password = bcrypt.hashpw(user_id.encode(), bcrypt.gensalt())
-            conn.execute('INSERT OR IGNORE INTO users (username, password, is_admin) VALUES (?, ?, ?)',
-                         (user_id, password, 0))
+            initial_password = f'mh{user_id}'  # 초기 비밀번호를 'mh' + 사용자 ID로 설정
+            password = bcrypt.hashpw(initial_password.encode(), bcrypt.gensalt())
+            conn.execute('INSERT OR IGNORE INTO users (username, password, is_admin, first_login) VALUES (?, ?, ?, ?)',
+                         (user_id, password, 0, 1))
     
     conn.commit()
     conn.close()
@@ -41,14 +42,14 @@ def login(username, password):
     user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
     conn.close()
     if user and bcrypt.checkpw(password.encode(), user['password']):
-        return True
-    return False
+        return user
+    return None
 
 # 비밀번호 변경 함수
 def change_password(username, new_password):
     conn = get_db_connection()
     new_password_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt())
-    conn.execute('UPDATE users SET password = ? WHERE username = ?', (new_password_hash, username))
+    conn.execute('UPDATE users SET password = ?, first_login = 0 WHERE username = ?', (new_password_hash, username))
     conn.commit()
     conn.close()
 
@@ -80,27 +81,39 @@ def main():
         username = st.text_input('아이디')
         password = st.text_input('비밀번호', type='password')
         if st.button('로그인'):
-            if login(username, password):
+            user = login(username, password)
+            if user:
                 st.session_state.logged_in = True
                 st.session_state.username = username
+                st.session_state.first_login = user['first_login']
                 st.success('로그인 성공!')
                 st.rerun()
             else:
                 st.error('아이디 또는 비밀번호가 잘못되었습니다.')
     else:
-        conn = get_db_connection()
-        user = conn.execute('SELECT * FROM users WHERE username = ?', (st.session_state.username,)).fetchone()
-        conn.close()
-
-        if user['is_admin']:
-            admin_view()
+        if st.session_state.first_login:
+            st.warning('첫 로그인입니다. 비밀번호를 변경해주세요.')
+            new_password = st.text_input('새 비밀번호', type='password')
+            if st.button('비밀번호 변경'):
+                change_password(st.session_state.username, new_password)
+                st.session_state.first_login = False
+                st.success('비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해주세요.')
+                st.session_state.logged_in = False
+                st.rerun()
         else:
-            student_view()
+            conn = get_db_connection()
+            user = conn.execute('SELECT * FROM users WHERE username = ?', (st.session_state.username,)).fetchone()
+            conn.close()
 
-        if st.button('로그아웃'):
-            st.session_state.logged_in = False
-            st.session_state.username = None
-            st.rerun()
+            if user['is_admin']:
+                admin_view()
+            else:
+                student_view()
+
+            if st.button('로그아웃'):
+                st.session_state.logged_in = False
+                st.session_state.username = None
+                st.rerun()
 
 def student_view():
     st.write(f'안녕하세요, {st.session_state.username}님!')
@@ -115,7 +128,9 @@ def student_view():
         new_password = st.text_input('새 비밀번호', type='password')
         if st.button('변경 확인'):
             change_password(st.session_state.username, new_password)
-            st.success('비밀번호가 변경되었습니다.')
+            st.success('비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해주세요.')
+            st.session_state.logged_in = False
+            st.rerun()
 
 def admin_view():
     st.write('관리자 페이지')
