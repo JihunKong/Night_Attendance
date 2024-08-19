@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import bcrypt
 import sqlite3
 import os
+import pytz
 
 # 데이터베이스 연결
 def get_db_connection():
@@ -71,7 +72,10 @@ def change_password(username, new_password):
 
 # 출석 체크 함수
 def check_attendance(username):
-    now = datetime.now()
+    # 한국 시간대 설정
+    korea_tz = pytz.timezone('Asia/Seoul')
+    now = datetime.now(korea_tz)
+    
     if now.weekday() < 5:  # 월요일부터 금요일까지
         if (19 <= now.hour < 20) or (now.hour == 20 and now.minute <= 20) or \
            (20 <= now.hour < 21) or (now.hour == 21 and now.minute <= 50):
@@ -82,16 +86,6 @@ def check_attendance(username):
             conn.close()
             return True
     return False
-
-# 사용자 정보 확인
-def check_user_info(username):
-    conn = get_db_connection()
-    user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
-    conn.close()
-    if user:
-        st.write(f"사용자 정보: {dict(user)}")
-    else:
-        st.write(f"사용자 '{username}'을(를) 찾을 수 없습니다.")
 
 # 비밀번호 초기화 함수
 def reset_password(username):
@@ -110,17 +104,6 @@ def main():
     if not os.path.exists('attendance.db'):
         st.warning("데이터베이스 파일이 없습니다. 초기화를 진행합니다.")
         init_db()
-    
-    # 디버그 모드
-    if st.sidebar.checkbox('디버그 모드'):
-        st.sidebar.write("세션 상태:")
-        st.sidebar.write(st.session_state)
-        st.sidebar.write("데이터베이스 내용:")
-        conn = get_db_connection()
-        users = conn.execute('SELECT * FROM users').fetchall()
-        conn.close()
-        for user in users:
-            st.sidebar.write(dict(user))
 
     if 'logged_in' not in st.session_state:
         st.session_state.logged_in = False
@@ -139,15 +122,7 @@ def main():
                 st.rerun()
             else:
                 st.error('로그인 실패. 아이디와 비밀번호를 확인해주세요.')
-        
-        # 사용자 정보 확인 버튼
-        if st.button('사용자 정보 확인'):
-            check_user_info(username)
     else:
-        st.write(f"로그인 상태: {st.session_state.logged_in}")
-        st.write(f"사용자: {st.session_state.username}")
-        st.write(f"관리자 여부: {'예' if st.session_state.is_admin else '아니오'}")
-        
         if st.session_state.first_login:
             st.warning('첫 로그인입니다. 비밀번호를 변경해주세요.')
             new_password = st.text_input('새 비밀번호', type='password')
