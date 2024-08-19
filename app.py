@@ -178,32 +178,21 @@ def admin_view():
     # 출석 데이터 표시 섹션
     st.subheader('출석 데이터')
     conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("PRAGMA table_info(attendance)")
-    columns = [column[1] for column in cursor.fetchall()]
-    st.write("데이터베이스 테이블 구조:", columns)
-
     attendance_data = conn.execute('SELECT * FROM attendance ORDER BY timestamp DESC').fetchall()
     conn.close()
 
     if attendance_data:
-        df = pd.DataFrame(attendance_data, columns=columns)
-        st.write("DataFrame 열:", df.columns)
-        
-        if 'timestamp' in df.columns:
-            df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
-            df['week'] = df['timestamp'].dt.to_period('W').astype(str)
+        df = pd.DataFrame(attendance_data, columns=['username', 'timestamp'])
+        df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+        df['week'] = df['timestamp'].dt.to_period('W').astype(str)
 
-            weeks = sorted(df['week'].dropna().unique(), reverse=True)
-            if weeks:
-                selected_week = st.selectbox('주 선택', weeks)
-                filtered_df = df[df['week'] == selected_week]
-                st.write(filtered_df)
-            else:
-                st.write('유효한 날짜 데이터가 없습니다.')
+        weeks = sorted(df['week'].dropna().unique(), reverse=True)
+        if weeks:
+            selected_week = st.selectbox('주 선택', weeks)
+            filtered_df = df[df['week'] == selected_week]
+            st.write(filtered_df)
         else:
-            st.error("출석 데이터에 'timestamp' 열이 없습니다.")
-            st.write("사용 가능한 열:", df.columns)
+            st.write('출석 데이터가 없습니다.')
     else:
         st.write('출석 데이터가 없습니다.')
 
